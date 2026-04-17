@@ -1,0 +1,142 @@
+
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Cloth Game</title>
+</head>
+<body style="margin:0; overflow:hidden; background:black;">
+<canvas id="c"></canvas>
+
+<script>
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let W = canvas.width;
+let H = canvas.height;
+
+// 点
+let P = [];
+for (let y = 0; y < 30; y++) {
+  for (let x = 0; x < 50; x++) {
+    P.push({
+      x: x*20 + W/4,
+      y: y*20 + 100,
+      oldx: x*20 + 100,
+      oldy: y*20 + 100,
+      fixed: y === 0
+    });
+  }
+}
+
+// 線
+let S = [];
+for (let i = 0; i < P.length; i++) {
+  if ((i+1)%50) S.push([i, i+1, true]);
+  if (i < P.length-50) S.push([i, i+50, true]);
+}
+
+let mouse = {x:0,y:0,left:false,right:false};
+let broken = 0;
+let reveal = false;
+
+canvas.onmousemove = e => {
+  mouse.x = e.clientX;
+  mouse.y = e.clientY;
+};
+canvas.onmousedown = e => {
+  if (e.button === 0) mouse.left = true;
+  if (e.button === 2) mouse.right = true;
+};
+canvas.onmouseup = e => {
+  if (e.button === 0) mouse.left = false;
+  if (e.button === 2) mouse.right = false;
+};
+
+// 画像
+let img = new Image();
+img.src = "reveal.png";
+
+function update() {
+  ctx.fillStyle = "rgb(0,5,10)";
+  ctx.fillRect(0,0,W,H);
+
+  // 点の更新
+  for (let p of P) {
+    if (!p.fixed) {
+      if (mouse.left && Math.hypot(p.x-mouse.x, p.y-mouse.y) < 30) {
+        p.x = mouse.x;
+        p.y = mouse.y;
+      }
+
+      let vx = Math.max(-20, Math.min(20, (p.x - p.oldx)*0.99));
+      let vy = Math.max(-20, Math.min(20, (p.y - p.oldy)*0.99));
+
+      p.oldx = p.x;
+      p.oldy = p.y;
+
+      p.x += vx;
+      p.y += vy + 0.4;
+    }
+  }
+
+  // バネ制約
+  for (let k=0;k<6;k++){
+    for (let s of S) {
+      if (!s[2]) continue;
+
+      let p1 = P[s[0]];
+      let p2 = P[s[1]];
+
+      let dx = p2.x - p1.x;
+      let dy = p2.y - p1.y;
+      let d = Math.hypot(dx,dy) || 0.1;
+
+      if (d > 100 || (mouse.right && Math.hypot((p1.x+p2.x)/2-mouse.x,(p1.y+p2.y)/2-mouse.y)<15)) {
+        if (s[2]) broken++;
+        s[2] = false;
+        continue;
+      }
+
+      let f = (20-d)/d*0.5;
+
+      if (!p1.fixed) {
+        p1.x -= dx*f;
+        p1.y -= dy*f;
+      }
+      if (!p2.fixed) {
+        p2.x += dx*f;
+        p2.y += dy*f;
+      }
+    }
+  }
+
+  // 発動
+  if (broken > 100) reveal = true;
+
+  // 描画
+  if (reveal) {
+    ctx.drawImage(img, 0, 0, W, H);
+  } else {
+    ctx.strokeStyle = "rgb(0,255,150)";
+    for (let s of S) {
+      if (!s[2]) continue;
+      let p1 = P[s[0]];
+      let p2 = P[s[1]];
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.stroke();
+    }
+  }
+
+  requestAnimationFrame(update);
+}
+
+update();
+</script>
+</body>
+</html>
